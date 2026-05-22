@@ -1,23 +1,45 @@
 const express = require("express");
 const path = require("path");
-const fs = require("fs");
+const sqlite3 = require("sqlite3").verbose();
 
 const app = express();
 
 const PORT = process.env.PORT || 3000;
 
 // Middleware
-app.use(express.static(path.join(__dirname, "client")));
+app.use(express.static(path.join(__dirname, "public")));
 app.use(express.json());
 
-// Home route
-app.get("/", (req, res) => {
-    res.sendFile(path.join(__dirname, "client/", "new.html"));
+// SQLite Database
+const db = new sqlite3.Database("./users.db", (err) => {
+
+    if (err) {
+        console.log(err.message);
+    } else {
+        console.log("Connected to SQLite database");
+    }
+
 });
 
-// Signup route
+// Create table
+db.run(`
+    CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT,
+        phone TEXT,
+        email TEXT,
+        password TEXT
+    )
+`);
+
+// Home Route
+app.get("/", (req, res) => {
+    res.sendFile(path.join(__dirname, "public", "index.html"));
+});
+
+// Signup Route
 app.post("/signup", (req, res) => {
-    console.log(req.body);
+
     const {
         username,
         phone,
@@ -25,38 +47,31 @@ app.post("/signup", (req, res) => {
         password
     } = req.body;
 
-    // Create user object
-    const newUser = {
-        username,
-        phone,
-        email,
-        password,
-        createdAt: new Date()
-    };
+    console.log(req.body);
 
-    const filePath = path.join(__dirname, "users.json");
+    const sql = `
+        INSERT INTO users (username, phone, email, password)
+        VALUES (?, ?, ?, ?)
+    `;
 
-    let users = [];
+    db.run(sql, [username, phone, email, password], function (err) {
 
-    // Read old users
-    if (fs.existsSync(filePath)) {
-        const fileData = fs.readFileSync(filePath, "utf8");
+        if (err) {
 
-        if (fileData) {
-            users = JSON.parse(fileData);
+            console.log(err.message);
+
+            return res.status(500).json({
+                success: false,
+                message: "Database error"
+            });
+
         }
-    }
 
-    // Add new user
-    users.push(newUser);
+        res.json({
+            success: true,
+            message: "Account created successfully!"
+        });
 
-    // Save users
-    fs.writeFileSync(filePath, JSON.stringify(users, null, 2));
-
-    // Response
-    res.json({
-        success: true,
-        message: "Account created successfully!"
     });
 
 });
