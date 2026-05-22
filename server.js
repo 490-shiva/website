@@ -17,7 +17,7 @@ app.get("/", (req, res) => {
 
 // Signup route
 app.post("/signup", (req, res) => {
-
+    console.log(req.body);
     const {
         username,
         phone,
